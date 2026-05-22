@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Scoreboard — MKCS Quiz Night</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --blue:#1a3fc7;
+    --blue-deep:#122c91;
+    --blue-dark:#0a0f2e;
+    --yellow:#ffc627;
+    --yellow-bright:#ffe04a;
+    --white:#ffffff;
+    --line:rgba(255,255,255,0.10);
+    --soft:rgba(255,255,255,0.06);
+  }
+  html, body { background:var(--blue-dark); color:var(--white); font-family:'Barlow',sans-serif; min-height:100vh; }
+  body { padding:14px 10px 60px; max-width:980px; margin:0 auto; }
+
+  .top-accent { height:5px; background:var(--yellow); border-radius:3px; margin-bottom:14px; }
+
+  header {
+    display:flex; align-items:flex-end; justify-content:space-between; gap:14px;
+    flex-wrap:wrap; margin-bottom:18px;
+  }
+  .title-block { flex:1; min-width:0; }
+  .eyebrow {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:3px; text-transform:uppercase;
+    color:rgba(255,255,255,0.55); margin-bottom:4px;
+  }
+  h1 {
+    font-family:'Archivo Black',sans-serif;
+    font-size:38px; line-height:0.95; text-transform:uppercase;
+  }
+  h1 span { color:var(--yellow); }
+
+  .status {
+    font-family:'Barlow Condensed',sans-serif; font-weight:700;
+    font-size:12px; letter-spacing:2px; text-transform:uppercase;
+    color:rgba(255,255,255,0.55);
+    display:flex; align-items:center; gap:8px;
+  }
+  .status .dot { width:8px; height:8px; border-radius:50%; background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
+  .status.stale .dot { background:#ff6b6b; box-shadow:0 0 8px #ff6b6b; }
+
+  .board {
+    background:var(--blue);
+    border-radius:16px; overflow:hidden;
+    box-shadow:0 6px 28px rgba(0,0,0,0.35);
+  }
+
+  /* Header row */
+  .row-head, .row {
+    display:grid;
+    grid-template-columns: 40px minmax(0,1fr) repeat(var(--rounds,0), minmax(46px, 1fr)) 78px;
+    align-items:center;
+    gap:0;
+  }
+  .row-head {
+    background:rgba(0,0,0,0.28);
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:13px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--yellow);
+    padding:12px 8px;
+  }
+  .row-head .h-pos { text-align:center; }
+  .row-head .h-team { padding-left:6px; }
+  .row-head .h-round { text-align:center; }
+  .row-head .h-total { text-align:right; padding-right:14px; }
+
+  .row {
+    padding:14px 8px; border-top:1px solid var(--line);
+    transition:background 0.2s;
+  }
+  .row:first-of-type { border-top:none; }
+  .row.leader {
+    background:rgba(255,198,39,0.10);
+  }
+  .row.leader .pos { color:var(--blue-deep); background:var(--yellow); }
+  .row.leader .team { color:var(--yellow); }
+  .row.leader .total { color:var(--yellow); }
+
+  .pos {
+    font-family:'Archivo Black',sans-serif;
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(255,255,255,0.08); color:var(--white);
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; margin:0 auto;
+  }
+  .team {
+    font-family:'Archivo Black',sans-serif;
+    font-size:18px; padding-left:6px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    min-width:0;
+  }
+  .round-cell {
+    text-align:center;
+    font-family:'Barlow',sans-serif; font-weight:700;
+    font-size:16px; color:rgba(255,255,255,0.85);
+  }
+  .round-cell.empty { color:rgba(255,255,255,0.18); }
+  .total {
+    text-align:right; padding-right:14px;
+    font-family:'Archivo Black',sans-serif;
+    font-size:22px; color:var(--white);
+  }
+
+  .empty-state {
+    padding:50px 24px; text-align:center;
+    color:rgba(255,255,255,0.45); font-style:italic; font-size:16px;
+  }
+  .empty-state strong { display:block; color:var(--yellow); font-style:normal; font-family:'Archivo Black',sans-serif; font-size:18px; margin-bottom:8px; letter-spacing:1px; text-transform:uppercase; }
+
+  .link-row {
+    text-align:center; margin-top:18px; font-size:14px;
+    color:rgba(255,255,255,0.55);
+  }
+  .link-row a { color:var(--yellow); font-weight:700; text-decoration:none; }
+  .link-row a:active { text-decoration:underline; }
+
+  #setup {
+    background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.45);
+    color:#ffd0d0; padding:14px 16px; border-radius:12px; margin-bottom:14px;
+    font-size:13px; line-height:1.5;
+  }
+  #setup code { background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px; font-size:12px; }
+
+  /* Mobile tuning */
+  @media (max-width:600px) {
+    h1 { font-size:30px; }
+    .row-head { font-size:11px; padding:10px 4px; }
+    .row { padding:12px 4px; }
+    .row-head, .row {
+      grid-template-columns: 30px minmax(0,1fr) repeat(var(--rounds,0), minmax(34px, 1fr)) 62px;
+    }
+    .pos { width:26px; height:26px; font-size:12px; }
+    .team { font-size:15px; padding-left:4px; }
+    .round-cell { font-size:13px; }
+    .total { font-size:18px; padding-right:8px; }
+    .h-total { padding-right:8px; }
+  }
+  @media (max-width:380px) {
+    h1 { font-size:26px; }
+    .team { font-size:13px; }
+    .round-cell { font-size:12px; }
+    .total { font-size:16px; }
+    .row-head, .row {
+      grid-template-columns: 26px minmax(0,1fr) repeat(var(--rounds,0), minmax(28px, 1fr)) 54px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="top-accent"></div>
+
+<header>
+  <div class="title-block">
+    <div class="eyebrow">MKCS Quiz Night · Live</div>
+    <h1>Score<span>board</span></h1>
+  </div>
+  <div class="status" id="status">
+    <div class="dot"></div>
+    <span id="status-text">Loading…</span>
+  </div>
+</header>
+
+<div id="setup" style="display:none">
+  <strong>Setup needed:</strong> Paste your Apps Script Web app URL into <code>API_URL</code> at the top of this file. See <code>apps-script.gs</code> for instructions.
+</div>
+
+<div class="board" id="board">
+  <div class="empty-state" id="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>
+</div>
+
+<div class="link-row">Enter scores — <a href="submit.html">Open Score Entry</a></div>
+
+<script>
+  // ============================================================
+  // CONFIG — same Apps Script Web app URL as submit.html.
+  // ============================================================
+  const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+  const REFRESH_MS = 8000;
+  // ============================================================
+
+  if (!API_URL || API_URL.indexOf('script.google.com') === -1) {
+    document.getElementById('setup').style.display = 'block';
+  }
+
+  let lastDataKey = '';
+
+  async function tick() {
+    try {
+      const res = await fetch(API_URL + '?_=' + Date.now());
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error(data && data.error || 'Bad response');
+      render(data);
+      setStatus(false, 'Updated ' + new Date().toLocaleTimeString());
+    } catch (e) {
+      console.warn('tick failed', e);
+      setStatus(true, 'Connection lost · retrying');
+    }
+  }
+
+  function setStatus(stale, msg) {
+    document.getElementById('status').classList.toggle('stale', !!stale);
+    document.getElementById('status-text').textContent = msg;
+  }
+
+  function render(data) {
+    const scores = data.scores || [];
+    const teamsKnown = data.teams || [];
+
+    // Determine which rounds have at least one score
+    const roundsUsed = [];
+    const roundSet = new Set();
+    scores.forEach(s => roundSet.add(s.round));
+    Array.from(roundSet).sort((a,b)=>a-b).forEach(r => roundsUsed.push(r));
+
+    // Aggregate by team
+    const teamMap = {}; // teamKey -> { display, perRound:{round:score}, total }
+    function ensureTeam(name) {
+      const k = name.toLowerCase();
+      if (!teamMap[k]) teamMap[k] = { display: name, perRound: {}, total: 0 };
+      return teamMap[k];
+    }
+    scores.forEach(s => {
+      const t = ensureTeam(s.team);
+      t.perRound[s.round] = (t.perRound[s.round] || 0) + s.score; // upsert means only one row per team/round anyway
+      t.total = Object.values(t.perRound).reduce((a,b)=>a+b, 0);
+    });
+    // Include known teams with no scores yet (so they appear at the bottom — only if any team has scored)
+    // Skip if no scores at all — keep empty state clean.
+    if (scores.length) {
+      teamsKnown.forEach(n => { if (!teamMap[n.toLowerCase()]) ensureTeam(n); });
+    }
+
+    const rows = Object.values(teamMap).sort((a,b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      return a.display.localeCompare(b.display);
+    });
+
+    const key = JSON.stringify({ rows, roundsUsed });
+    if (key === lastDataKey) return;
+    lastDataKey = key;
+
+    const board = document.getElementById('board');
+    if (!rows.length || !roundsUsed.length) {
+      board.innerHTML = '<div class="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>';
+      board.style.removeProperty('--rounds');
+      return;
+    }
+
+    board.style.setProperty('--rounds', roundsUsed.length);
+
+    const topTotal = rows[0].total;
+
+    let html = '<div class="row-head">';
+    html += '<div class="h-pos">#</div>';
+    html += '<div class="h-team">Team</div>';
+    roundsUsed.forEach(r => { html += '<div class="h-round">R' + r + '</div>'; });
+    html += '<div class="h-total">Total</div>';
+    html += '</div>';
+
+    rows.forEach((t, i) => {
+      const isLeader = t.total === topTotal && topTotal > 0;
+      html += '<div class="row' + (isLeader ? ' leader' : '') + '">';
+      html += '<div class="pos">' + (i + 1) + '</div>';
+      html += '<div class="team">' + escapeHtml(t.display) + '</div>';
+      roundsUsed.forEach(r => {
+        const v = t.perRound[r];
+        if (v === undefined || v === null) html += '<div class="round-cell empty">—</div>';
+        else html += '<div class="round-cell">' + fmt(v) + '</div>';
+      });
+      html += '<div class="total">' + fmt(t.total) + '</div>';
+      html += '</div>';
+    });
+
+    board.innerHTML = html;
+  }
+
+  function fmt(n) {
+    if (n === undefined || n === null) return '';
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  tick();
+  setInterval(tick, REFRESH_MS);
+</script>
+</body>
+</html>
