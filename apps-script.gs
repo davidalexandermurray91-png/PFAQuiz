@@ -68,6 +68,70 @@ function doPost(e) {
       return json_({ ok: true, team, round, score, updated });
     }
 
+    if (body.action === 'renameTeam') {
+      const oldName = cleanName_(body.oldName);
+      const newName = cleanName_(body.newName);
+      if (!oldName || !newName) return json_({ ok: false, error: 'Both names required' });
+      if (oldName.toLowerCase() === newName.toLowerCase()) {
+        // Allow case-only rename; otherwise no-op
+      }
+      // Reject collision with another existing team (case-insensitive, excluding the team being renamed)
+      const teamsSheet = ss.getSheetByName(SHEET_TEAMS);
+      const tData = teamsSheet.getDataRange().getValues();
+      let row = -1;
+      for (let i = 1; i < tData.length; i++) {
+        const v = String(tData[i][0]).trim();
+        if (v.toLowerCase() === oldName.toLowerCase()) row = i;
+        else if (v.toLowerCase() === newName.toLowerCase()) return json_({ ok: false, error: 'Another team already uses that name' });
+      }
+      if (row < 0) return json_({ ok: false, error: 'Team not found' });
+      teamsSheet.getRange(row + 1, 1).setValue(newName);
+      // Cascade to scores
+      const scoresSheet = ss.getSheetByName(SHEET_SCORES);
+      const sData = scoresSheet.getDataRange().getValues();
+      for (let i = 1; i < sData.length; i++) {
+        if (String(sData[i][1]).trim().toLowerCase() === oldName.toLowerCase()) {
+          scoresSheet.getRange(i + 1, 2).setValue(newName);
+        }
+      }
+      return json_({ ok: true });
+    }
+
+    if (body.action === 'deleteTeam') {
+      const name = cleanName_(body.name);
+      if (!name) return json_({ ok: false, error: 'Team required' });
+      const teamsSheet = ss.getSheetByName(SHEET_TEAMS);
+      const tData = teamsSheet.getDataRange().getValues();
+      for (let i = tData.length - 1; i >= 1; i--) {
+        if (String(tData[i][0]).trim().toLowerCase() === name.toLowerCase()) {
+          teamsSheet.deleteRow(i + 1);
+        }
+      }
+      const scoresSheet = ss.getSheetByName(SHEET_SCORES);
+      const sData = scoresSheet.getDataRange().getValues();
+      for (let i = sData.length - 1; i >= 1; i--) {
+        if (String(sData[i][1]).trim().toLowerCase() === name.toLowerCase()) {
+          scoresSheet.deleteRow(i + 1);
+        }
+      }
+      return json_({ ok: true });
+    }
+
+    if (body.action === 'deleteScore') {
+      const team = cleanName_(body.team);
+      const round = parseInt(body.round, 10);
+      if (!team) return json_({ ok: false, error: 'Team required' });
+      if (!(round >= 1 && round <= ROUNDS_MAX)) return json_({ ok: false, error: 'Round must be 1-' + ROUNDS_MAX });
+      const scoresSheet = ss.getSheetByName(SHEET_SCORES);
+      const sData = scoresSheet.getDataRange().getValues();
+      for (let i = sData.length - 1; i >= 1; i--) {
+        if (String(sData[i][1]).trim().toLowerCase() === team.toLowerCase() && Number(sData[i][2]) === round) {
+          scoresSheet.deleteRow(i + 1);
+        }
+      }
+      return json_({ ok: true });
+    }
+
     return json_({ ok: false, error: 'Unknown action' });
   } catch (err) {
     return json_({ ok: false, error: String(err && err.message || err) });

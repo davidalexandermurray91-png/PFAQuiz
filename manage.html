@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Manage — MKCS Quiz Night</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --blue:#1a3fc7;
+    --blue-deep:#122c91;
+    --blue-dark:#0a0f2e;
+    --yellow:#ffc627;
+    --yellow-bright:#ffe04a;
+    --white:#ffffff;
+    --line:rgba(255,255,255,0.12);
+    --soft:rgba(255,255,255,0.08);
+    --danger:#ff6b6b;
+  }
+  html, body { background:var(--blue-dark); color:var(--white); font-family:'Barlow',sans-serif; min-height:100vh; }
+  body { padding:14px 12px 80px; max-width:680px; margin:0 auto; }
+
+  .top-accent { height:5px; background:var(--yellow); border-radius:3px; margin-bottom:14px; }
+
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+  .title-block { flex:1; min-width:0; }
+  .eyebrow {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:3px; text-transform:uppercase;
+    color:rgba(255,255,255,0.55); margin-bottom:4px;
+  }
+  h1 { font-family:'Archivo Black',sans-serif; font-size:32px; line-height:0.95; text-transform:uppercase; }
+  h1 span { color:var(--yellow); }
+  .refresh {
+    background:transparent; border:1px solid rgba(255,255,255,0.2); color:var(--white);
+    width:42px; height:42px; border-radius:50%; font-size:18px; cursor:pointer;
+    line-height:1;
+  }
+  .refresh:active { background:rgba(255,198,39,0.15); border-color:var(--yellow); }
+  .refresh.spin { animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .team-card {
+    background:var(--blue); border-radius:14px;
+    margin-bottom:12px; overflow:hidden;
+    box-shadow:0 4px 18px rgba(0,0,0,0.3);
+  }
+  .team-head {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 16px; background:rgba(0,0,0,0.22);
+    border-bottom:1px solid var(--line);
+  }
+  .team-name {
+    flex:1; font-family:'Archivo Black',sans-serif;
+    font-size:19px; line-height:1.2; word-break:break-word;
+    min-width:0;
+  }
+  .team-name-input {
+    flex:1; background:rgba(0,0,0,0.35); border:2px solid var(--yellow);
+    color:var(--white); font-family:'Archivo Black',sans-serif;
+    font-size:17px; padding:8px 12px; border-radius:8px; outline:none;
+    min-width:0; width:100%;
+  }
+  .team-total {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:13px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--yellow); white-space:nowrap;
+  }
+  .icon-btn {
+    background:transparent; border:1px solid var(--line); color:rgba(255,255,255,0.75);
+    width:38px; height:38px; border-radius:8px; cursor:pointer;
+    font-size:14px; flex-shrink:0; line-height:1;
+  }
+  .icon-btn:active { background:rgba(255,198,39,0.15); border-color:var(--yellow); color:var(--yellow); }
+  .icon-btn.danger { border-color:rgba(255,107,107,0.45); color:#ffb0b0; }
+  .icon-btn.danger:active { background:rgba(255,107,107,0.18); color:#fff; }
+  .icon-btn.save { border-color:var(--yellow); color:var(--yellow); background:rgba(255,198,39,0.12); }
+
+  .scores-grid {
+    display:grid; grid-template-columns:repeat(2,1fr); gap:8px;
+    padding:12px 14px;
+  }
+  .score-cell {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(0,0,0,0.18); border:1px solid var(--line);
+    border-radius:10px; padding:8px 10px 8px 12px;
+    min-height:50px;
+  }
+  .score-round {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:13px; letter-spacing:2px; color:var(--yellow);
+    width:28px; flex-shrink:0;
+  }
+  .score-value {
+    flex:1; font-family:'Archivo Black',sans-serif;
+    font-size:18px; min-width:0;
+  }
+  .score-value-input {
+    flex:1; background:rgba(0,0,0,0.35); border:2px solid var(--yellow);
+    color:var(--white); font-family:'Archivo Black',sans-serif;
+    font-size:16px; padding:4px 8px; border-radius:6px; outline:none;
+    min-width:0; width:100%;
+    -webkit-appearance:none; -moz-appearance:textfield;
+  }
+  .score-value-input::-webkit-outer-spin-button,
+  .score-value-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .mini-btn {
+    background:transparent; border:1px solid var(--line); color:rgba(255,255,255,0.6);
+    width:28px; height:28px; border-radius:6px; cursor:pointer;
+    font-size:12px; flex-shrink:0; line-height:1;
+  }
+  .mini-btn:active { background:rgba(255,198,39,0.15); border-color:var(--yellow); color:var(--yellow); }
+  .mini-btn.danger { border-color:rgba(255,107,107,0.4); color:#ffb0b0; }
+  .mini-btn.danger:active { background:rgba(255,107,107,0.2); color:#fff; }
+  .mini-btn.save { border-color:var(--yellow); color:var(--yellow); background:rgba(255,198,39,0.12); }
+
+  .no-scores {
+    padding:14px; text-align:center; font-style:italic;
+    color:rgba(255,255,255,0.4); font-size:13px;
+  }
+
+  .empty-state {
+    background:var(--blue); border-radius:14px;
+    padding:40px 22px; text-align:center;
+    color:rgba(255,255,255,0.55); font-style:italic;
+  }
+  .empty-state strong {
+    display:block; color:var(--yellow); font-style:normal;
+    font-family:'Archivo Black',sans-serif; font-size:18px;
+    margin-bottom:8px; letter-spacing:1px; text-transform:uppercase;
+  }
+
+  .link-row {
+    text-align:center; margin-top:18px; font-size:14px;
+    color:rgba(255,255,255,0.55);
+  }
+  .link-row a { color:var(--yellow); font-weight:700; text-decoration:none; }
+  .link-row span { color:rgba(255,255,255,0.3); margin:0 8px; }
+
+  #toast {
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(60px);
+    background:var(--blue-deep); border:2px solid var(--yellow);
+    color:var(--white); padding:14px 22px; border-radius:30px;
+    font-family:'Archivo Black',sans-serif; font-size:14px; letter-spacing:1px;
+    text-transform:uppercase;
+    box-shadow:0 6px 24px rgba(0,0,0,0.5);
+    opacity:0; transition:all 0.25s; pointer-events:none; z-index:999;
+    max-width:90vw; text-align:center;
+  }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast.error { border-color:var(--danger); }
+
+  #setup {
+    background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.45);
+    color:#ffd0d0; padding:14px 16px; border-radius:12px; margin-bottom:14px;
+    font-size:13px; line-height:1.5;
+  }
+  #setup code { background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px; font-size:12px; }
+
+  @media (max-width:380px) {
+    h1 { font-size:28px; }
+    .team-name { font-size:17px; }
+    .score-value { font-size:16px; }
+    .scores-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="top-accent"></div>
+
+<header>
+  <div class="title-block">
+    <div class="eyebrow">MKCS Quiz Night · Manage</div>
+    <h1>Fix<span>Mistakes</span></h1>
+  </div>
+  <button class="refresh" id="refresh-btn" onclick="load()" title="Refresh">↻</button>
+</header>
+
+<div id="setup" style="display:none">
+  <strong>Setup needed:</strong> Paste your Apps Script Web app URL into <code>API_URL</code>.
+</div>
+
+<div id="teams-list">
+  <div class="empty-state"><strong>Loading…</strong></div>
+</div>
+
+<div class="link-row">
+  <a href="submit.html">← Score Entry</a><span>·</span><a href="index.html">Scoreboard →</a>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API_URL = 'https://script.google.com/macros/s/AKfycby4CsJlEWM_De3XJKhPaYDUtb1-FxReaW3dqU55cdSDcnUnbn3xik1UEbpbT6x2B1AvDA/exec';
+  const ROUNDS  = 7;
+
+  if (!API_URL || API_URL.indexOf('script.google.com') === -1) {
+    document.getElementById('setup').style.display = 'block';
+  }
+
+  let teams = [];
+  let scores = [];
+  // Track which thing is currently being edited inline (only one at a time)
+  let editing = null; // { kind:'team'|'score', team, round? }
+
+  async function load() {
+    const btn = document.getElementById('refresh-btn');
+    btn.classList.add('spin');
+    try {
+      const res = await fetch(API_URL + '?_=' + Date.now());
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error(data && data.error || 'Bad response');
+      teams = data.teams || [];
+      scores = data.scores || [];
+      render();
+    } catch (e) {
+      toast('Load failed: ' + e.message, true);
+    } finally {
+      btn.classList.remove('spin');
+    }
+  }
+
+  function render() {
+    const list = document.getElementById('teams-list');
+    if (!teams.length) {
+      list.innerHTML = '<div class="empty-state"><strong>No teams yet</strong>Add teams on the score entry page.</div>';
+      return;
+    }
+
+    // Build a per-team score map
+    const byTeam = {};
+    teams.forEach(t => { byTeam[t.toLowerCase()] = { display:t, perRound:{}, total:0 }; });
+    scores.forEach(s => {
+      const k = s.team.toLowerCase();
+      if (!byTeam[k]) byTeam[k] = { display:s.team, perRound:{}, total:0 };
+      byTeam[k].perRound[s.round] = s.score;
+      byTeam[k].total += s.score;
+    });
+
+    // Sort by total desc, then name
+    const rows = Object.values(byTeam).sort((a,b)=>{
+      if (b.total !== a.total) return b.total - a.total;
+      return a.display.localeCompare(b.display);
+    });
+
+    list.innerHTML = rows.map(t => buildTeamCard(t)).join('');
+    wireUp();
+  }
+
+  function buildTeamCard(t) {
+    const nameKey = t.display.toLowerCase();
+    const isEditingName = editing && editing.kind === 'team' && editing.team.toLowerCase() === nameKey;
+    const nameHtml = isEditingName
+      ? `<input class="team-name-input" id="ti-${esc(nameKey)}" value="${escAttr(t.display)}" autocomplete="off">`
+      : `<div class="team-name">${escHtml(t.display)}</div>`;
+    const actionBtns = isEditingName
+      ? `<button class="icon-btn save" data-act="rename-save" data-team="${escAttr(t.display)}">✓</button>
+         <button class="icon-btn" data-act="rename-cancel">×</button>`
+      : `<button class="icon-btn" data-act="rename" data-team="${escAttr(t.display)}" title="Rename">✎</button>
+         <button class="icon-btn danger" data-act="delete-team" data-team="${escAttr(t.display)}" title="Delete">✕</button>`;
+
+    const totalLbl = `Total ${fmt(t.total)}`;
+    const scoresHtml = buildScoresGrid(t);
+
+    return `<div class="team-card">
+      <div class="team-head">
+        ${nameHtml}
+        ${isEditingName ? '' : `<div class="team-total">${totalLbl}</div>`}
+        ${actionBtns}
+      </div>
+      ${scoresHtml}
+    </div>`;
+  }
+
+  function buildScoresGrid(t) {
+    const cells = [];
+    for (let r = 1; r <= ROUNDS; r++) {
+      const v = t.perRound[r];
+      if (v === undefined || v === null) continue;
+      const isEditingThis = editing && editing.kind === 'score'
+        && editing.team.toLowerCase() === t.display.toLowerCase()
+        && editing.round === r;
+      const inner = isEditingThis
+        ? `<input class="score-value-input" id="si-${esc(t.display.toLowerCase())}-${r}" type="number" inputmode="decimal" step="0.5" value="${v}">
+           <button class="mini-btn save" data-act="score-save" data-team="${escAttr(t.display)}" data-round="${r}">✓</button>
+           <button class="mini-btn" data-act="score-cancel">×</button>`
+        : `<div class="score-value">${fmt(v)}</div>
+           <button class="mini-btn" data-act="score-edit" data-team="${escAttr(t.display)}" data-round="${r}" title="Edit">✎</button>
+           <button class="mini-btn danger" data-act="score-delete" data-team="${escAttr(t.display)}" data-round="${r}" title="Delete">✕</button>`;
+      cells.push(`<div class="score-cell"><div class="score-round">R${r}</div>${inner}</div>`);
+    }
+    if (!cells.length) return '<div class="no-scores">No scores submitted yet.</div>';
+    return `<div class="scores-grid">${cells.join('')}</div>`;
+  }
+
+  function wireUp() {
+    document.querySelectorAll('[data-act]').forEach(el => {
+      el.onclick = () => handleAction(el.dataset.act, el.dataset.team, el.dataset.round && Number(el.dataset.round));
+    });
+    // Auto-focus the editing input
+    if (editing && editing.kind === 'team') {
+      const inp = document.getElementById('ti-' + editing.team.toLowerCase());
+      if (inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleAction('rename-save', editing.team);
+        if (e.key === 'Escape') handleAction('rename-cancel');
+      }); }
+    }
+    if (editing && editing.kind === 'score') {
+      const inp = document.getElementById(`si-${editing.team.toLowerCase()}-${editing.round}`);
+      if (inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleAction('score-save', editing.team, editing.round);
+        if (e.key === 'Escape') handleAction('score-cancel');
+      }); }
+    }
+  }
+
+  async function handleAction(act, team, round) {
+    if (act === 'rename') {
+      editing = { kind:'team', team }; render(); return;
+    }
+    if (act === 'rename-cancel' || act === 'score-cancel') {
+      editing = null; render(); return;
+    }
+    if (act === 'rename-save') {
+      const inp = document.getElementById('ti-' + team.toLowerCase());
+      const newName = (inp.value || '').trim();
+      if (!newName) { toast('Name required', true); return; }
+      if (newName === team) { editing = null; render(); return; }
+      try {
+        const res = await api({ action:'renameTeam', oldName:team, newName });
+        if (!res.ok) throw new Error(res.error || 'Failed');
+        toast('Renamed');
+        editing = null;
+        await load();
+      } catch (e) { toast('Rename failed: ' + e.message, true); }
+      return;
+    }
+    if (act === 'delete-team') {
+      if (!confirm(`Delete "${team}" and all their scores?\n\nThis cannot be undone.`)) return;
+      try {
+        const res = await api({ action:'deleteTeam', name:team });
+        if (!res.ok) throw new Error(res.error || 'Failed');
+        toast('Team deleted');
+        await load();
+      } catch (e) { toast('Delete failed: ' + e.message, true); }
+      return;
+    }
+    if (act === 'score-edit') {
+      editing = { kind:'score', team, round }; render(); return;
+    }
+    if (act === 'score-save') {
+      const inp = document.getElementById(`si-${team.toLowerCase()}-${round}`);
+      const raw = inp.value;
+      if (raw === '' || isNaN(Number(raw))) { toast('Enter a number', true); return; }
+      try {
+        const res = await api({ action:'submitScore', team, round, score:Number(raw) });
+        if (!res.ok) throw new Error(res.error || 'Failed');
+        toast('Updated');
+        editing = null;
+        await load();
+      } catch (e) { toast('Update failed: ' + e.message, true); }
+      return;
+    }
+    if (act === 'score-delete') {
+      if (!confirm(`Delete ${team} · R${round}?`)) return;
+      try {
+        const res = await api({ action:'deleteScore', team, round });
+        if (!res.ok) throw new Error(res.error || 'Failed');
+        toast('Score deleted');
+        await load();
+      } catch (e) { toast('Delete failed: ' + e.message, true); }
+      return;
+    }
+  }
+
+  async function api(payload) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  }
+
+  function fmt(n) {
+    if (n === undefined || n === null) return '';
+    return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+  }
+  function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function escAttr(s) { return escHtml(s); }
+  function esc(s) { return String(s).replace(/[^a-z0-9_-]/gi, '_'); }
+
+  let toastTimer;
+  function toast(msg, isError) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  load();
+</script>
+</body>
+</html>
