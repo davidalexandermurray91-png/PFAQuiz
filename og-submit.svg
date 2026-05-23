@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a3fc7"/>
+      <stop offset="100%" stop-color="#122c91"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Top yellow accent stripe -->
+  <rect x="0" y="0" width="1200" height="14" fill="#ffc627"/>
+
+  <!-- Soft yellow decorative circles top-right -->
+  <circle cx="1140" cy="60"  r="220" fill="#ffc627" fill-opacity="0.06"/>
+  <circle cx="1190" cy="20"  r="120" fill="#ffc627" fill-opacity="0.05"/>
+
+  <!-- Eyebrow -->
+  <text x="600" y="135" text-anchor="middle"
+        font-family="Impact, 'Arial Black', 'Helvetica Neue', sans-serif"
+        font-weight="900" font-size="26"
+        fill="#ffffff" fill-opacity="0.55" letter-spacing="10">
+    MKCS QUIZ NIGHT
+  </text>
+
+  <!-- Main title line 1 -->
+  <text x="600" y="310" text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-weight="900" font-size="150"
+        fill="#ffffff" letter-spacing="3">
+    SUBMIT
+  </text>
+
+  <!-- Main title line 2 (yellow, slightly larger) -->
+  <text x="600" y="460" text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-weight="900" font-size="160"
+        fill="#ffc627" letter-spacing="3">
+    SCORES
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="560" text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-weight="900" font-size="22"
+        fill="#ffffff" fill-opacity="0.7" letter-spacing="8">
+    TEAM CAPTAINS · ROUND BY ROUND
+  </text>
+</svg>
