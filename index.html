@@ -95,10 +95,10 @@
     display:flex; align-items:center; justify-content:center;
     font-size:13px; flex-shrink:0;
   }
-  .move { font-size:11px; line-height:1; height:11px; display:flex; align-items:center; justify-content:center; gap:1px; }
+  .move { font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; gap:2px; margin-top:1px; }
   .move.up   { color:var(--green); }
   .move.down { color:var(--red); }
-  .move-n { font-family:'Barlow',sans-serif; font-weight:700; font-size:9px; opacity:0.75; }
+  .move-n { font-family:'Barlow',sans-serif; font-weight:800; font-size:11px; }
 
   /* Team name: wraps freely so the full name is always visible; row grows as needed */
   .team {
@@ -160,7 +160,8 @@
     .row-head { font-size:11px; padding:10px 4px; }
     .row { padding:9px 4px; }
     .pos-badge { width:24px; height:24px; font-size:11px; }
-    .move { font-size:10px; height:10px; }
+    .move { font-size:12px; }
+    .move-n { font-size:10px; }
     .team { font-size:14px; padding-left:4px; }
     .round-cell { font-size:13px; }
     .round-cell.high .score-val { min-width:26px; height:26px; font-size:11px; }
@@ -171,6 +172,8 @@
     :root { --col-pos:24px; --col-round:28px; --col-total:48px; }
     h1 { font-size:26px; }
     .team { font-size:13px; }
+    .move { font-size:11px; }
+    .move-n { font-size:9px; }
     .round-cell { font-size:11px; }
     .round-cell.high .score-val { min-width:22px; height:22px; font-size:10px; }
     .total { font-size:15px; }
