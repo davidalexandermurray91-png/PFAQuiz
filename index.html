@@ -209,7 +209,9 @@
   }
 
   let lastDataKey = '';
-  let prevRanks = null;   // { teamKey: rankIndex } from the previous distinct standings
+  let prevRanks = null;      // rankings from the previous render
+  let snapshotRanks = null;  // rankings frozen at the end of the previous round
+  let prevMaxRound = 0;      // highest round number seen so far
 
   async function tick() {
     try {
@@ -278,8 +280,16 @@
     const currRanks = {};
     rows.forEach((t, i) => { currRanks[t.key] = i; });
 
-    // Movement arrows: only from round 2 onward, and only when we have a baseline to compare against
-    const showMovement = roundsUsed.length >= 2 && prevRanks && Object.keys(prevRanks).length > 0;
+    // Snapshot rankings at the moment a new round's first score arrives,
+    // so arrows compare against end-of-previous-round standings (not mid-round state)
+    const maxRound = roundsUsed.length > 0 ? Math.max(...roundsUsed) : 0;
+    if (maxRound > prevMaxRound) {
+      snapshotRanks = prevRanks;
+      prevMaxRound = maxRound;
+    }
+
+    // Movement arrows: only from round 2 onward, and only when we have a snapshot to compare against
+    const showMovement = roundsUsed.length >= 2 && snapshotRanks && Object.keys(snapshotRanks).length > 0;
 
     // High score per round (to badge)
     const roundHigh = {};
@@ -302,8 +312,8 @@
 
       // Movement arrow
       let moveHtml = '<div class="move"></div>';
-      if (showMovement && prevRanks[t.key] !== undefined) {
-        const delta = prevRanks[t.key] - i; // positive = climbed (rank index decreased)
+      if (showMovement && snapshotRanks[t.key] !== undefined) {
+        const delta = snapshotRanks[t.key] - i; // positive = climbed (rank index decreased)
         if (delta > 0)      moveHtml = '<div class="move up">▲</div>';
         else if (delta < 0) moveHtml = '<div class="move down">▼</div>';
       }
