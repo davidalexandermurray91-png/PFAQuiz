@@ -24,6 +24,8 @@
     --yellow:#ffc627;
     --yellow-bright:#ffe04a;
     --white:#ffffff;
+    --green:#3fbf7f;
+    --red:#ff6b6b;
     --line:rgba(255,255,255,0.10);
     --soft:rgba(255,255,255,0.06);
     /* Fixed column widths — rounds take exactly this; team column gets everything left */
@@ -56,7 +58,7 @@
     display:flex; align-items:center; gap:8px;
   }
   .status .dot { width:8px; height:8px; border-radius:50%; background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
-  .status.stale .dot { background:#ff6b6b; box-shadow:0 0 8px #ff6b6b; }
+  .status.stale .dot { background:var(--red); box-shadow:0 0 8px var(--red); }
 
   .board { background:var(--blue); border-radius:16px; overflow:hidden; box-shadow:0 6px 28px rgba(0,0,0,0.35); }
 
@@ -77,38 +79,33 @@
   .row-head .h-round{ text-align:center; }
   .row-head .h-total{ text-align:right; padding-right:12px; }
 
-  .row { padding:12px 8px; border-top:1px solid var(--line); transition:background 0.2s; }
+  .row { padding:10px 8px; border-top:1px solid var(--line); transition:background 0.2s; }
   .row:first-of-type { border-top:none; }
   .row.leader { background:rgba(255,198,39,0.10); }
-  .row.leader .pos   { color:var(--blue-deep); background:var(--yellow); }
-  .row.leader .team  { color:var(--yellow); }
-  .row.leader .total { color:var(--yellow); }
+  .row.leader .pos-badge { color:var(--blue-deep); background:var(--yellow); }
+  .row.leader .team      { color:var(--yellow); }
+  .row.leader .total     { color:var(--yellow); }
 
-  .pos {
+  /* Position column: rank badge with movement arrow stacked beneath (no extra width) */
+  .pos { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .pos-badge {
     font-family:'Archivo Black',sans-serif;
     width:28px; height:28px; border-radius:50%;
     background:rgba(255,255,255,0.08); color:var(--white);
     display:flex; align-items:center; justify-content:center;
-    font-size:13px; margin:0 auto; flex-shrink:0;
+    font-size:13px; flex-shrink:0;
   }
+  .move { font-size:11px; line-height:1; height:11px; }
+  .move.up   { color:var(--green); }
+  .move.down { color:var(--red); }
 
-  /* Team name: wraps to max 2 lines; tap to expand if truncated */
+  /* Team name: wraps freely so the full name is always visible; row grows as needed */
   .team {
     font-family:'Archivo Black',sans-serif;
     font-size:17px; padding-left:6px;
-    display:-webkit-box;
-    -webkit-line-clamp:2;
-    -webkit-box-orient:vertical;
-    overflow:hidden;
     word-break:break-word;
-    line-height:1.25;
+    line-height:1.2;
     min-width:0;
-    cursor:pointer;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .team.expanded {
-    -webkit-line-clamp:unset;
-    overflow:visible;
   }
 
   /* Round cells */
@@ -160,8 +157,9 @@
     :root { --col-pos:28px; --col-round:34px; --col-total:56px; }
     h1 { font-size:30px; }
     .row-head { font-size:11px; padding:10px 4px; }
-    .row { padding:10px 4px; }
-    .pos { width:24px; height:24px; font-size:11px; }
+    .row { padding:9px 4px; }
+    .pos-badge { width:24px; height:24px; font-size:11px; }
+    .move { font-size:10px; height:10px; }
     .team { font-size:14px; padding-left:4px; }
     .round-cell { font-size:13px; }
     .round-cell.high .score-val { min-width:26px; height:26px; font-size:11px; }
@@ -211,6 +209,7 @@
   }
 
   let lastDataKey = '';
+  let prevRanks = null;   // { teamKey: rankIndex } from the previous distinct standings
 
   async function tick() {
     try {
@@ -243,7 +242,7 @@
     const teamMap = {};
     function ensureTeam(name) {
       const k = name.toLowerCase();
-      if (!teamMap[k]) teamMap[k] = { display: name, perRound: {}, total: 0 };
+      if (!teamMap[k]) teamMap[k] = { key: k, display: name, perRound: {}, total: 0 };
       return teamMap[k];
     }
     scores.forEach(s => {
@@ -269,10 +268,18 @@
     if (!rows.length || !roundsUsed.length) {
       board.innerHTML = '<div class="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>';
       board.style.removeProperty('--rounds');
+      prevRanks = null;
       return;
     }
 
     board.style.setProperty('--rounds', roundsUsed.length);
+
+    // Current rank map
+    const currRanks = {};
+    rows.forEach((t, i) => { currRanks[t.key] = i; });
+
+    // Movement arrows: only from round 2 onward, and only when we have a baseline to compare against
+    const showMovement = roundsUsed.length >= 2 && prevRanks && Object.keys(prevRanks).length > 0;
 
     // High score per round (to badge)
     const roundHigh = {};
@@ -292,8 +299,17 @@
 
     rows.forEach((t, i) => {
       const isLeader = t.total === topTotal && topTotal > 0;
+
+      // Movement arrow
+      let moveHtml = '<div class="move"></div>';
+      if (showMovement && prevRanks[t.key] !== undefined) {
+        const delta = prevRanks[t.key] - i; // positive = climbed (rank index decreased)
+        if (delta > 0)      moveHtml = '<div class="move up">▲</div>';
+        else if (delta < 0) moveHtml = '<div class="move down">▼</div>';
+      }
+
       html += '<div class="row' + (isLeader ? ' leader' : '') + '">';
-      html += '<div class="pos">' + (i + 1) + '</div>';
+      html += '<div class="pos"><div class="pos-badge">' + (i + 1) + '</div>' + moveHtml + '</div>';
       html += '<div class="team">' + escapeHtml(t.display) + '</div>';
       roundsUsed.forEach(r => {
         const v = t.perRound[r];
@@ -311,10 +327,8 @@
 
     board.innerHTML = html;
 
-    // Tap-to-expand for team names that overflow their 2-line clamp
-    board.querySelectorAll('.team').forEach(el => {
-      el.addEventListener('click', () => el.classList.toggle('expanded'));
-    });
+    // Store this standings as the baseline for the next change
+    prevRanks = currRanks;
   }
 
   function fmt(n) {
