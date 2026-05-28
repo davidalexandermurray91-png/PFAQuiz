@@ -95,9 +95,10 @@
     display:flex; align-items:center; justify-content:center;
     font-size:13px; flex-shrink:0;
   }
-  .move { font-size:11px; line-height:1; height:11px; }
+  .move { font-size:11px; line-height:1; height:11px; display:flex; align-items:center; justify-content:center; gap:1px; }
   .move.up   { color:var(--green); }
   .move.down { color:var(--red); }
+  .move-n { font-family:'Barlow',sans-serif; font-weight:700; font-size:9px; opacity:0.75; }
 
   /* Team name: wraps freely so the full name is always visible; row grows as needed */
   .team {
@@ -209,9 +210,6 @@
   }
 
   let lastDataKey = '';
-  let prevRanks = null;      // rankings from the previous render
-  let snapshotRanks = null;  // rankings frozen at the end of the previous round
-  let prevMaxRound = 0;      // highest round number seen so far
 
   async function tick() {
     try {
@@ -270,26 +268,28 @@
     if (!rows.length || !roundsUsed.length) {
       board.innerHTML = '<div class="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>';
       board.style.removeProperty('--rounds');
-      prevRanks = null;
       return;
     }
 
     board.style.setProperty('--rounds', roundsUsed.length);
 
-    // Current rank map
-    const currRanks = {};
-    rows.forEach((t, i) => { currRanks[t.key] = i; });
-
-    // Snapshot rankings at the moment a new round's first score arrives,
-    // so arrows compare against end-of-previous-round standings (not mid-round state)
-    const maxRound = roundsUsed.length > 0 ? Math.max(...roundsUsed) : 0;
-    if (maxRound > prevMaxRound) {
-      snapshotRanks = prevRanks;
-      prevMaxRound = maxRound;
+    // Rank map for arrows: compare current standings against standings without the latest round.
+    // Computing this from the raw scores means it works on any fresh page load.
+    let prevRoundRanks = null;
+    if (roundsUsed.length >= 2) {
+      const allButLast = roundsUsed.slice(0, -1);
+      const prevTotals = {};
+      rows.forEach(t => {
+        prevTotals[t.key] = allButLast.reduce((sum, r) => sum + (t.perRound[r] || 0), 0);
+      });
+      const prevSorted = rows.slice().sort((a, b) => {
+        if (prevTotals[b.key] !== prevTotals[a.key]) return prevTotals[b.key] - prevTotals[a.key];
+        return a.display.localeCompare(b.display);
+      });
+      prevRoundRanks = {};
+      prevSorted.forEach((t, i) => { prevRoundRanks[t.key] = i; });
     }
-
-    // Movement arrows: only from round 2 onward, and only when we have a snapshot to compare against
-    const showMovement = roundsUsed.length >= 2 && snapshotRanks && Object.keys(snapshotRanks).length > 0;
+    const showMovement = prevRoundRanks !== null;
 
     // High score per round (to badge)
     const roundHigh = {};
@@ -310,12 +310,12 @@
     rows.forEach((t, i) => {
       const isLeader = t.total === topTotal && topTotal > 0;
 
-      // Movement arrow
+      // Movement arrow + places moved
       let moveHtml = '<div class="move"></div>';
-      if (showMovement && snapshotRanks[t.key] !== undefined) {
-        const delta = snapshotRanks[t.key] - i; // positive = climbed (rank index decreased)
-        if (delta > 0)      moveHtml = '<div class="move up">▲</div>';
-        else if (delta < 0) moveHtml = '<div class="move down">▼</div>';
+      if (showMovement && prevRoundRanks[t.key] !== undefined) {
+        const delta = prevRoundRanks[t.key] - i; // positive = climbed (rank index decreased)
+        if (delta > 0)      moveHtml = '<div class="move up">▲<span class="move-n">' + delta + '</span></div>';
+        else if (delta < 0) moveHtml = '<div class="move down">▼<span class="move-n">' + Math.abs(delta) + '</span></div>';
       }
 
       html += '<div class="row' + (isLeader ? ' leader' : '') + '">';
@@ -336,9 +336,6 @@
     });
 
     board.innerHTML = html;
-
-    // Store this standings as the baseline for the next change
-    prevRanks = currRanks;
   }
 
   function fmt(n) {
