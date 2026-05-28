@@ -144,8 +144,16 @@
     margin-bottom:8px; letter-spacing:1px; text-transform:uppercase;
   }
 
-  .link-row { text-align:center; margin-top:18px; font-size:14px; color:rgba(255,255,255,0.55); }
-  .link-row a { color:var(--yellow); font-weight:700; text-decoration:none; }
+  .link-row { text-align:center; margin-top:18px; }
+  .nav-btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; box-sizing:border-box;
+    background:rgba(255,198,39,0.12); border:2px solid rgba(255,198,39,0.5);
+    color:var(--yellow); font-family:'Archivo Black',sans-serif;
+    font-size:18px; letter-spacing:1px; text-transform:uppercase;
+    padding:16px; border-radius:14px; text-decoration:none; min-height:58px;
+  }
+  .nav-btn:active { background:rgba(255,198,39,0.22); transform:scale(0.99); }
 
   #setup {
     background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.45);
@@ -202,7 +210,7 @@
   <div class="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>
 </div>
 
-<div class="link-row">Enter scores — <a href="submit.html">Open Score Entry</a></div>
+<div class="link-row"><a class="nav-btn" href="submit.html">Enter Scores →</a></div>
 
 <script>
   const API_URL  = 'https://script.google.com/macros/s/AKfycby4CsJlEWM_De3XJKhPaYDUtb1-FxReaW3dqU55cdSDcnUnbn3xik1UEbpbT6x2B1AvDA/exec';
