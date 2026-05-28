@@ -127,16 +127,8 @@
     background:var(--yellow); color:var(--blue-deep); border-color:var(--yellow);
   }
 
-  .score-row { display:flex; align-items:center; gap:10px; }
-  .score-step {
-    background:rgba(0,0,0,0.22); border:2px solid var(--line);
-    color:var(--white); width:64px; height:64px; border-radius:14px;
-    font-family:'Archivo Black',sans-serif; font-size:30px; cursor:pointer;
-    flex-shrink:0;
-  }
-  .score-step:active { background:rgba(255,198,39,0.15); }
   .score-input {
-    flex:1; background:rgba(0,0,0,0.25); border:2px solid rgba(255,198,39,0.35);
+    width:100%; background:rgba(0,0,0,0.25); border:2px solid rgba(255,198,39,0.35);
     color:var(--white); font-family:'Archivo Black',sans-serif;
     font-size:38px; text-align:center; padding:14px 6px; border-radius:14px;
     outline:none; min-width:0;
@@ -190,7 +182,6 @@
     .team-name { font-size:19px; }
     .round-btn { font-size:18px; padding:16px 0; }
     .score-input { font-size:32px; }
-    .score-step { width:56px; height:56px; font-size:26px; }
   }
 </style>
 </head>
@@ -226,11 +217,7 @@
 
 <div class="panel">
   <div class="label">Score</div>
-  <div class="score-row">
-    <button class="score-step" type="button" onclick="bumpScore(-1)">−</button>
-    <input class="score-input" id="score-input" type="number" inputmode="numeric" pattern="[0-9]*" step="0.5" placeholder="0">
-    <button class="score-step" type="button" onclick="bumpScore(1)">+</button>
-  </div>
+  <input class="score-input" id="score-input" type="number" inputmode="decimal" pattern="[0-9]*" step="0.5" placeholder="0">
 </div>
 
 <button class="submit-btn" id="submit-btn" onclick="submitScore()">Submit Score →</button>
@@ -307,8 +294,11 @@
     });
   }
 
+  const TEAM_KEY = 'mkcs_quiz_team';
+
   function pickTeam(name) {
     selectedTeam = name;
+    try { localStorage.setItem(TEAM_KEY, name); } catch (e) {}
     const nameEl = document.getElementById('team-name');
     nameEl.textContent = name;
     nameEl.classList.remove('placeholder');
@@ -338,12 +328,6 @@
     }
   }
 
-  function bumpScore(d) {
-    const inp = document.getElementById('score-input');
-    const v = parseFloat(inp.value || '0') + d;
-    inp.value = v < 0 ? 0 : v;
-  }
-
   async function submitScore() {
     if (!selectedTeam) { toast('Pick a team first.', true); return; }
     if (!selectedRound) { toast('Pick a round.', true); return; }
@@ -371,11 +355,24 @@
     try {
       const res = await fetch(API_URL);
       const data = await res.json();
-      if (data && data.teams) { teams = data.teams; renderTeamOptions(''); }
+      if (data && data.teams) {
+        teams = data.teams;
+        restoreTeam();
+        renderTeamOptions('');
+      }
     } catch (e) {
       // Silent — user can still add teams
       console.warn('loadTeams failed', e);
     }
+  }
+
+  function restoreTeam() {
+    if (selectedTeam) return;
+    let saved;
+    try { saved = localStorage.getItem(TEAM_KEY); } catch (e) {}
+    if (!saved) return;
+    const match = teams.find(t => t.toLowerCase() === saved.toLowerCase());
+    if (match) pickTeam(match);
   }
 
   async function api(payload) {
