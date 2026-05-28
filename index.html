@@ -26,6 +26,10 @@
     --white:#ffffff;
     --line:rgba(255,255,255,0.10);
     --soft:rgba(255,255,255,0.06);
+    /* Fixed column widths — rounds take exactly this; team column gets everything left */
+    --col-pos:36px;
+    --col-round:44px;
+    --col-total:72px;
   }
   html, body { background:var(--blue-dark); color:var(--white); font-family:'Barlow',sans-serif; min-height:100vh; }
   body { padding:14px 10px 60px; max-width:980px; margin:0 auto; }
@@ -42,10 +46,7 @@
     font-size:12px; letter-spacing:3px; text-transform:uppercase;
     color:rgba(255,255,255,0.55); margin-bottom:4px;
   }
-  h1 {
-    font-family:'Archivo Black',sans-serif;
-    font-size:38px; line-height:0.95; text-transform:uppercase;
-  }
+  h1 { font-family:'Archivo Black',sans-serif; font-size:38px; line-height:0.95; text-transform:uppercase; }
   h1 span { color:var(--yellow); }
 
   .status {
@@ -57,80 +58,96 @@
   .status .dot { width:8px; height:8px; border-radius:50%; background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
   .status.stale .dot { background:#ff6b6b; box-shadow:0 0 8px #ff6b6b; }
 
-  .board {
-    background:var(--blue);
-    border-radius:16px; overflow:hidden;
-    box-shadow:0 6px 28px rgba(0,0,0,0.35);
-  }
+  .board { background:var(--blue); border-radius:16px; overflow:hidden; box-shadow:0 6px 28px rgba(0,0,0,0.35); }
 
-  /* Header row */
+  /* Grid: pos | team (1fr — gets all remaining space) | round cols (fixed) | total (fixed) */
   .row-head, .row {
     display:grid;
-    grid-template-columns: 40px minmax(0,1fr) repeat(var(--rounds,0), minmax(46px, 1fr)) 78px;
+    grid-template-columns: var(--col-pos) 1fr repeat(var(--rounds,0), var(--col-round)) var(--col-total);
     align-items:center;
-    gap:0;
   }
   .row-head {
     background:rgba(0,0,0,0.28);
     font-family:'Barlow Condensed',sans-serif; font-weight:800;
     font-size:13px; letter-spacing:2px; text-transform:uppercase;
-    color:var(--yellow);
-    padding:12px 8px;
+    color:var(--yellow); padding:12px 8px;
   }
-  .row-head .h-pos { text-align:center; }
+  .row-head .h-pos  { text-align:center; }
   .row-head .h-team { padding-left:6px; }
-  .row-head .h-round { text-align:center; }
-  .row-head .h-total { text-align:right; padding-right:14px; }
+  .row-head .h-round{ text-align:center; }
+  .row-head .h-total{ text-align:right; padding-right:12px; }
 
-  .row {
-    padding:14px 8px; border-top:1px solid var(--line);
-    transition:background 0.2s;
-  }
+  .row { padding:12px 8px; border-top:1px solid var(--line); transition:background 0.2s; }
   .row:first-of-type { border-top:none; }
-  .row.leader {
-    background:rgba(255,198,39,0.10);
-  }
-  .row.leader .pos { color:var(--blue-deep); background:var(--yellow); }
-  .row.leader .team { color:var(--yellow); }
+  .row.leader { background:rgba(255,198,39,0.10); }
+  .row.leader .pos   { color:var(--blue-deep); background:var(--yellow); }
+  .row.leader .team  { color:var(--yellow); }
   .row.leader .total { color:var(--yellow); }
 
   .pos {
     font-family:'Archivo Black',sans-serif;
-    width:32px; height:32px; border-radius:50%;
+    width:28px; height:28px; border-radius:50%;
     background:rgba(255,255,255,0.08); color:var(--white);
     display:flex; align-items:center; justify-content:center;
-    font-size:14px; margin:0 auto;
+    font-size:13px; margin:0 auto; flex-shrink:0;
   }
+
+  /* Team name: wraps to max 2 lines; tap to expand if truncated */
   .team {
     font-family:'Archivo Black',sans-serif;
-    font-size:18px; padding-left:6px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:17px; padding-left:6px;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    word-break:break-word;
+    line-height:1.25;
     min-width:0;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
   }
+  .team.expanded {
+    -webkit-line-clamp:unset;
+    overflow:visible;
+  }
+
+  /* Round cells */
   .round-cell {
     text-align:center;
     font-family:'Barlow',sans-serif; font-weight:700;
-    font-size:16px; color:rgba(255,255,255,0.85);
+    font-size:15px; color:rgba(255,255,255,0.85);
+    display:flex; align-items:center; justify-content:center;
   }
   .round-cell.empty { color:rgba(255,255,255,0.18); }
-  .total {
-    text-align:right; padding-right:14px;
+
+  /* High score per round — yellow circle badge */
+  .round-cell.high .score-val {
+    display:inline-flex; align-items:center; justify-content:center;
+    background:var(--yellow); color:var(--blue-deep);
     font-family:'Archivo Black',sans-serif;
-    font-size:22px; color:var(--white);
+    font-size:13px;
+    min-width:30px; height:30px;
+    border-radius:999px; padding:0 4px;
+  }
+
+  .total {
+    text-align:right; padding-right:12px;
+    font-family:'Archivo Black',sans-serif;
+    font-size:20px; color:var(--white);
   }
 
   .empty-state {
     padding:50px 24px; text-align:center;
     color:rgba(255,255,255,0.45); font-style:italic; font-size:16px;
   }
-  .empty-state strong { display:block; color:var(--yellow); font-style:normal; font-family:'Archivo Black',sans-serif; font-size:18px; margin-bottom:8px; letter-spacing:1px; text-transform:uppercase; }
-
-  .link-row {
-    text-align:center; margin-top:18px; font-size:14px;
-    color:rgba(255,255,255,0.55);
+  .empty-state strong {
+    display:block; color:var(--yellow); font-style:normal;
+    font-family:'Archivo Black',sans-serif; font-size:18px;
+    margin-bottom:8px; letter-spacing:1px; text-transform:uppercase;
   }
+
+  .link-row { text-align:center; margin-top:18px; font-size:14px; color:rgba(255,255,255,0.55); }
   .link-row a { color:var(--yellow); font-weight:700; text-decoration:none; }
-  .link-row a:active { text-decoration:underline; }
 
   #setup {
     background:rgba(255,107,107,0.1); border:1px solid rgba(255,107,107,0.45);
@@ -139,28 +156,25 @@
   }
   #setup code { background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px; font-size:12px; }
 
-  /* Mobile tuning */
   @media (max-width:600px) {
+    :root { --col-pos:28px; --col-round:34px; --col-total:56px; }
     h1 { font-size:30px; }
     .row-head { font-size:11px; padding:10px 4px; }
-    .row { padding:12px 4px; }
-    .row-head, .row {
-      grid-template-columns: 30px minmax(0,1fr) repeat(var(--rounds,0), minmax(34px, 1fr)) 62px;
-    }
-    .pos { width:26px; height:26px; font-size:12px; }
-    .team { font-size:15px; padding-left:4px; }
+    .row { padding:10px 4px; }
+    .pos { width:24px; height:24px; font-size:11px; }
+    .team { font-size:14px; padding-left:4px; }
     .round-cell { font-size:13px; }
-    .total { font-size:18px; padding-right:8px; }
-    .h-total { padding-right:8px; }
+    .round-cell.high .score-val { min-width:26px; height:26px; font-size:11px; }
+    .total { font-size:17px; padding-right:6px; }
+    .h-total { padding-right:6px; }
   }
   @media (max-width:380px) {
+    :root { --col-pos:24px; --col-round:28px; --col-total:48px; }
     h1 { font-size:26px; }
     .team { font-size:13px; }
-    .round-cell { font-size:12px; }
-    .total { font-size:16px; }
-    .row-head, .row {
-      grid-template-columns: 26px minmax(0,1fr) repeat(var(--rounds,0), minmax(28px, 1fr)) 54px;
-    }
+    .round-cell { font-size:11px; }
+    .round-cell.high .score-val { min-width:22px; height:22px; font-size:10px; }
+    .total { font-size:15px; }
   }
 </style>
 </head>
@@ -179,22 +193,18 @@
 </header>
 
 <div id="setup" style="display:none">
-  <strong>Setup needed:</strong> Paste your Apps Script Web app URL into <code>API_URL</code> at the top of this file. See <code>apps-script.gs</code> for instructions.
+  <strong>Setup needed:</strong> Paste your Apps Script Web app URL into <code>API_URL</code> at the top of this file.
 </div>
 
 <div class="board" id="board">
-  <div class="empty-state" id="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>
+  <div class="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>
 </div>
 
 <div class="link-row">Enter scores — <a href="submit.html">Open Score Entry</a></div>
 
 <script>
-  // ============================================================
-  // CONFIG — same Apps Script Web app URL as submit.html.
-  // ============================================================
-  const API_URL = 'https://script.google.com/macros/s/AKfycby4CsJlEWM_De3XJKhPaYDUtb1-FxReaW3dqU55cdSDcnUnbn3xik1UEbpbT6x2B1AvDA/exec';
+  const API_URL  = 'https://script.google.com/macros/s/AKfycby4CsJlEWM_De3XJKhPaYDUtb1-FxReaW3dqU55cdSDcnUnbn3xik1UEbpbT6x2B1AvDA/exec';
   const REFRESH_MS = 8000;
-  // ============================================================
 
   if (!API_URL || API_URL.indexOf('script.google.com') === -1) {
     document.getElementById('setup').style.display = 'block';
@@ -221,17 +231,16 @@
   }
 
   function render(data) {
-    const scores = data.scores || [];
-    const teamsKnown = data.teams || [];
+    const scores     = data.scores  || [];
+    const teamsKnown = data.teams   || [];
 
-    // Determine which rounds have at least one score
-    const roundsUsed = [];
+    // Rounds that have at least one score submitted
     const roundSet = new Set();
     scores.forEach(s => roundSet.add(s.round));
-    Array.from(roundSet).sort((a,b)=>a-b).forEach(r => roundsUsed.push(r));
+    const roundsUsed = Array.from(roundSet).sort((a, b) => a - b);
 
-    // Aggregate by team
-    const teamMap = {}; // teamKey -> { display, perRound:{round:score}, total }
+    // Aggregate per team
+    const teamMap = {};
     function ensureTeam(name) {
       const k = name.toLowerCase();
       if (!teamMap[k]) teamMap[k] = { display: name, perRound: {}, total: 0 };
@@ -239,16 +248,14 @@
     }
     scores.forEach(s => {
       const t = ensureTeam(s.team);
-      t.perRound[s.round] = (t.perRound[s.round] || 0) + s.score; // upsert means only one row per team/round anyway
-      t.total = Object.values(t.perRound).reduce((a,b)=>a+b, 0);
+      t.perRound[s.round] = s.score;
+      t.total = Object.values(t.perRound).reduce((a, b) => a + b, 0);
     });
-    // Include known teams with no scores yet (so they appear at the bottom — only if any team has scored)
-    // Skip if no scores at all — keep empty state clean.
     if (scores.length) {
       teamsKnown.forEach(n => { if (!teamMap[n.toLowerCase()]) ensureTeam(n); });
     }
 
-    const rows = Object.values(teamMap).sort((a,b) => {
+    const rows = Object.values(teamMap).sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
       return a.display.localeCompare(b.display);
     });
@@ -258,6 +265,7 @@
     lastDataKey = key;
 
     const board = document.getElementById('board');
+
     if (!rows.length || !roundsUsed.length) {
       board.innerHTML = '<div class="empty-state"><strong>No scores yet</strong>Submit the first round to bring the board to life.</div>';
       board.style.removeProperty('--rounds');
@@ -266,14 +274,21 @@
 
     board.style.setProperty('--rounds', roundsUsed.length);
 
+    // High score per round (to badge)
+    const roundHigh = {};
+    roundsUsed.forEach(r => {
+      let max = -Infinity;
+      rows.forEach(t => { const v = t.perRound[r]; if (v !== undefined && v > max) max = v; });
+      if (max > -Infinity) roundHigh[r] = max;
+    });
+
     const topTotal = rows[0].total;
 
     let html = '<div class="row-head">';
     html += '<div class="h-pos">#</div>';
     html += '<div class="h-team">Team</div>';
     roundsUsed.forEach(r => { html += '<div class="h-round">R' + r + '</div>'; });
-    html += '<div class="h-total">Total</div>';
-    html += '</div>';
+    html += '<div class="h-total">Total</div></div>';
 
     rows.forEach((t, i) => {
       const isLeader = t.total === topTotal && topTotal > 0;
@@ -282,14 +297,24 @@
       html += '<div class="team">' + escapeHtml(t.display) + '</div>';
       roundsUsed.forEach(r => {
         const v = t.perRound[r];
-        if (v === undefined || v === null) html += '<div class="round-cell empty">—</div>';
-        else html += '<div class="round-cell">' + fmt(v) + '</div>';
+        if (v === undefined || v === null) {
+          html += '<div class="round-cell empty">—</div>';
+        } else if (v === roundHigh[r] && roundHigh[r] !== undefined) {
+          html += '<div class="round-cell high"><span class="score-val">' + fmt(v) + '</span></div>';
+        } else {
+          html += '<div class="round-cell">' + fmt(v) + '</div>';
+        }
       });
       html += '<div class="total">' + fmt(t.total) + '</div>';
       html += '</div>';
     });
 
     board.innerHTML = html;
+
+    // Tap-to-expand for team names that overflow their 2-line clamp
+    board.querySelectorAll('.team').forEach(el => {
+      el.addEventListener('click', () => el.classList.toggle('expanded'));
+    });
   }
 
   function fmt(n) {
