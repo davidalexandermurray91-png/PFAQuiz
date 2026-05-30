@@ -196,6 +196,49 @@
   }
   .link-sub:active { text-decoration:underline; }
 
+  /* Collapsible maxes editor */
+  .maxes-toggle {
+    display:block; margin:18px auto 0; background:none; border:none;
+    color:rgba(255,255,255,0.5); font-family:'Barlow',sans-serif;
+    font-weight:700; font-size:13px; cursor:pointer; padding:6px 10px;
+  }
+  .maxes-toggle:active { color:var(--yellow); }
+  .maxes-panel {
+    display:none; margin:10px auto 0; max-width:520px;
+    background:var(--blue); border-radius:14px; padding:14px 16px;
+    box-shadow:0 4px 18px rgba(0,0,0,0.3);
+  }
+  .maxes-panel.open { display:block; }
+  .maxes-panel .hint {
+    font-size:12px; color:rgba(255,255,255,0.55);
+    margin-bottom:10px; line-height:1.4;
+  }
+  .max-row {
+    display:flex; align-items:center; gap:12px;
+    padding:8px 0; border-bottom:1px solid var(--line);
+  }
+  .max-row:last-child { border-bottom:none; }
+  .max-row-label {
+    font-family:'Archivo Black',sans-serif; font-size:15px;
+    color:var(--yellow); width:38px;
+  }
+  .max-row-input {
+    flex:1; background:rgba(0,0,0,0.25); border:1px solid var(--line);
+    color:var(--white); font-family:'Archivo Black',sans-serif;
+    font-size:16px; text-align:center; padding:8px; border-radius:8px; outline:none;
+    -webkit-appearance:none; -moz-appearance:textfield;
+    min-width:0;
+  }
+  .max-row-input::-webkit-outer-spin-button,
+  .max-row-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .max-row-input:focus { border-color:var(--yellow); }
+  .max-row-input.saving { border-color:var(--yellow); background:rgba(255,198,39,0.08); }
+  .max-row-input.saved  { border-color:#3fbf7f; }
+  .max-row-unit {
+    font-family:'Barlow',sans-serif; font-weight:600;
+    font-size:12px; color:rgba(255,255,255,0.5); width:44px;
+  }
+
   #toast {
     position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(60px);
     background:var(--blue-deep); border:2px solid var(--yellow);
@@ -269,6 +312,12 @@
 <div class="link-row">
   <a class="nav-btn" href="index.html">View Live Scoreboard →</a>
   <a class="link-sub" href="manage.html" style="opacity:0.7;">Fix a mistake?</a>
+</div>
+
+<button class="maxes-toggle" id="maxes-toggle" type="button" onclick="toggleMaxes()">▸ Set marks per round</button>
+<div class="maxes-panel" id="maxes-panel">
+  <div class="hint">Type the total marks available for each round. Leave blank to remove the cap. Saves automatically.</div>
+  <div id="maxes-rows"></div>
 </div>
 
 <div id="toast"></div>
@@ -356,6 +405,61 @@
   function fmtNum(n) {
     if (n === undefined || n === null) return '';
     return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+  }
+
+  function toggleMaxes() {
+    const panel = document.getElementById('maxes-panel');
+    const btn   = document.getElementById('maxes-toggle');
+    const open  = panel.classList.toggle('open');
+    btn.textContent = (open ? '▾' : '▸') + ' Set marks per round';
+    if (open) renderMaxesRows();
+  }
+
+  function renderMaxesRows() {
+    const box = document.getElementById('maxes-rows');
+    let html = '';
+    for (let r = 1; r <= ROUNDS; r++) {
+      const v = roundMax[r];
+      html += `<div class="max-row">
+        <div class="max-row-label">R${r}</div>
+        <input class="max-row-input" type="number" inputmode="decimal" step="0.5" min="0"
+               data-round="${r}" placeholder="—"
+               value="${v !== undefined ? v : ''}">
+        <div class="max-row-unit">marks</div>
+      </div>`;
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.max-row-input').forEach(inp => {
+      inp.addEventListener('change', () => saveMax(Number(inp.dataset.round), inp));
+      inp.addEventListener('blur',   () => saveMax(Number(inp.dataset.round), inp));
+    });
+  }
+
+  async function saveMax(round, inp) {
+    const raw = inp.value.trim();
+    const existing = roundMax[round];
+    const newVal = raw === '' ? null : Number(raw);
+    if (newVal === null && existing === undefined) return;
+    if (newVal !== null && newVal === existing) return;
+    if (newVal !== null && (!isFinite(newVal) || newVal < 0)) {
+      toast('Max must be a positive number', true);
+      inp.value = existing !== undefined ? existing : '';
+      return;
+    }
+    inp.classList.add('saving');
+    try {
+      const res = await api({ action:'setRoundMax', round, max: raw });
+      if (!res.ok) throw new Error(res.error || 'Failed');
+      roundMax = res.roundMax || {};
+      inp.classList.remove('saving');
+      inp.classList.add('saved');
+      setTimeout(() => inp.classList.remove('saved'), 900);
+      updateRoundMaxInfo();
+      updatePercent();
+    } catch (e) {
+      inp.classList.remove('saving');
+      toast('Save failed: ' + e.message, true);
+    }
   }
 
   function toggleTeamList() {
