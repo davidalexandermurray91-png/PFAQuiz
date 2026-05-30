@@ -19,7 +19,10 @@
 const SHEET_TEAMS     = 'Teams';
 const SHEET_SCORES    = 'Scores';
 const SHEET_ROUND_MAX = 'RoundMax';
-const ROUNDS_MAX      = 7;
+const SHEET_REJECTED  = 'Rejected';
+const SHEET_SETTINGS  = 'Settings';
+const ROUNDS_MAX      = 12;   // absolute cap on number of rounds
+const ROUNDS_DEFAULT  = 7;
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActive();
@@ -27,7 +30,9 @@ function doGet(e) {
   const teams    = readTeams_(ss);
   const scores   = readScores_(ss);
   const roundMax = readRoundMax_(ss);
-  return json_({ ok: true, teams, scores, roundMax, rounds: ROUNDS_MAX });
+  const rejected = readRejected_(ss);
+  const rounds   = getRounds_(ss);
+  return json_({ ok: true, teams, scores, roundMax, rejected, rounds, roundsMax: ROUNDS_MAX });
 }
 
 function doPost(e) {
@@ -45,6 +50,29 @@ function doPost(e) {
       }
       ss.getSheetByName(SHEET_TEAMS).appendRow([name, new Date()]);
       return json_({ ok: true, teams: teams.concat(name), added: true });
+    }
+
+    if (body.action === 'setRounds') {
+      const n = parseInt(body.rounds, 10);
+      if (!(n >= 1 && n <= ROUNDS_MAX)) return json_({ ok: false, error: 'Rounds must be 1–' + ROUNDS_MAX });
+      const sh = ss.getSheetByName(SHEET_SETTINGS);
+      const data = sh.getDataRange().getValues();
+      let rowIdx = -1;
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]).trim().toLowerCase() === 'rounds') { rowIdx = i; break; }
+      }
+      if (rowIdx >= 0) sh.getRange(rowIdx + 1, 1, 1, 2).setValues([['rounds', n]]);
+      else sh.appendRow(['rounds', n]);
+      return json_({ ok: true, rounds: n });
+    }
+
+    if (body.action === 'recordRejected') {
+      const team = cleanName_(body.team);
+      const round = parseInt(body.round, 10);
+      if (!team) return json_({ ok: false, error: 'Team required' });
+      if (!(round >= 1 && round <= ROUNDS_MAX)) return json_({ ok: false, error: 'Round must be 1–' + ROUNDS_MAX });
+      addRejected_(ss, team, round);
+      return json_({ ok: true, rejected: readRejected_(ss) });
     }
 
     if (body.action === 'setRoundMax') {
@@ -79,7 +107,8 @@ function doPost(e) {
       if (!isFinite(score)) return json_({ ok: false, error: 'Score must be a number' });
       const roundMax = readRoundMax_(ss);
       if (roundMax[round] !== undefined && score > roundMax[round]) {
-        return json_({ ok: false, error: 'Score ' + score + ' exceeds max of ' + roundMax[round] + ' for round ' + round });
+        addRejected_(ss, team, round);
+        return json_({ ok: false, error: 'Score ' + score + ' exceeds max of ' + roundMax[round] + ' for round ' + round, rejected: readRejected_(ss) });
       }
       if (score < 0) return json_({ ok: false, error: 'Score cannot be negative' });
 
@@ -95,6 +124,7 @@ function doPost(e) {
         }
       }
       if (!updated) sheet.appendRow([new Date(), team, round, score]);
+      removeRejected_(ss, team, round);
       return json_({ ok: true, team, round, score, updated });
     }
 
@@ -124,6 +154,14 @@ function doPost(e) {
           scoresSheet.getRange(i + 1, 2).setValue(newName);
         }
       }
+      // Cascade to rejected markers
+      const rejSheet = ss.getSheetByName(SHEET_REJECTED);
+      const rData = rejSheet.getDataRange().getValues();
+      for (let i = 1; i < rData.length; i++) {
+        if (String(rData[i][0]).trim().toLowerCase() === oldName.toLowerCase()) {
+          rejSheet.getRange(i + 1, 1).setValue(newName);
+        }
+      }
       return json_({ ok: true });
     }
 
@@ -144,6 +182,7 @@ function doPost(e) {
           scoresSheet.deleteRow(i + 1);
         }
       }
+      removeRejectedTeam_(ss, name);
       return json_({ ok: true });
     }
 
@@ -159,6 +198,7 @@ function doPost(e) {
           scoresSheet.deleteRow(i + 1);
         }
       }
+      removeRejected_(ss, team, round);
       return json_({ ok: true });
     }
 
@@ -175,6 +215,60 @@ function ensureSheets_(ss) {
   if (!s) { s = ss.insertSheet(SHEET_SCORES); s.appendRow(['Timestamp', 'Team', 'Round', 'Score']); }
   let m = ss.getSheetByName(SHEET_ROUND_MAX);
   if (!m) { m = ss.insertSheet(SHEET_ROUND_MAX); m.appendRow(['Round', 'Max']); }
+  let r = ss.getSheetByName(SHEET_REJECTED);
+  if (!r) { r = ss.insertSheet(SHEET_REJECTED); r.appendRow(['Team', 'Round']); }
+  let g = ss.getSheetByName(SHEET_SETTINGS);
+  if (!g) { g = ss.insertSheet(SHEET_SETTINGS); g.appendRow(['Key', 'Value']); g.appendRow(['rounds', ROUNDS_DEFAULT]); }
+}
+
+function getRounds_(ss) {
+  const sh = ss.getSheetByName(SHEET_SETTINGS);
+  const last = sh.getLastRow();
+  if (last >= 2) {
+    const data = sh.getRange(2, 1, last - 1, 2).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][0]).trim().toLowerCase() === 'rounds') {
+        const n = parseInt(data[i][1], 10);
+        if (n >= 1 && n <= ROUNDS_MAX) return n;
+      }
+    }
+  }
+  return ROUNDS_DEFAULT;
+}
+
+function readRejected_(ss) {
+  const sh = ss.getSheetByName(SHEET_REJECTED);
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, 2).getValues().map(r => ({
+    team: String(r[0]).trim(),
+    round: Number(r[1]),
+  })).filter(x => x.team && x.round);
+}
+
+function addRejected_(ss, team, round) {
+  const sh = ss.getSheetByName(SHEET_REJECTED);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === team.toLowerCase() && Number(data[i][1]) === round) return;
+  }
+  sh.appendRow([team, round]);
+}
+
+function removeRejected_(ss, team, round) {
+  const sh = ss.getSheetByName(SHEET_REJECTED);
+  const data = sh.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim().toLowerCase() === team.toLowerCase() && Number(data[i][1]) === round) sh.deleteRow(i + 1);
+  }
+}
+
+function removeRejectedTeam_(ss, team) {
+  const sh = ss.getSheetByName(SHEET_REJECTED);
+  const data = sh.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim().toLowerCase() === team.toLowerCase()) sh.deleteRow(i + 1);
+  }
 }
 
 function readRoundMax_(ss) {

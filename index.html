@@ -245,6 +245,10 @@
     const scores     = data.scores  || [];
     const teamsKnown = data.teams   || [];
 
+    // Rounds a team attempted an invalid (over-max) score for — flagged with a red ✕
+    const rejectedSet = new Set();
+    (data.rejected || []).forEach(x => rejectedSet.add(String(x.team).toLowerCase() + '|' + x.round));
+
     // Rounds that have at least one score submitted
     const roundSet = new Set();
     scores.forEach(s => roundSet.add(s.round));
@@ -271,7 +275,7 @@
       return a.display.localeCompare(b.display);
     });
 
-    const key = JSON.stringify({ rows, roundsUsed });
+    const key = JSON.stringify({ rows, roundsUsed, rejected: data.rejected || [] });
     if (key === lastDataKey) return;
     lastDataKey = key;
 
@@ -336,7 +340,11 @@
       roundsUsed.forEach(r => {
         const v = t.perRound[r];
         if (v === undefined || v === null) {
-          html += '<div class="round-cell missing">✕</div>';
+          if (rejectedSet.has(t.key + '|' + r)) {
+            html += '<div class="round-cell missing">✕</div>';
+          } else {
+            html += '<div class="round-cell empty">—</div>';
+          }
         } else if (v === roundHigh[r] && roundHigh[r] !== undefined) {
           html += '<div class="round-cell high"><span class="score-val">' + fmt(v) + '</span></div>';
         } else {

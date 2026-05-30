@@ -191,27 +191,53 @@
   }
   .nav-btn:active { background:rgba(255,198,39,0.22); transform:scale(0.99); }
   .link-sub {
-    display:inline-block; margin-top:14px; font-size:13px; font-weight:700;
-    color:rgba(255,255,255,0.55); text-decoration:none;
+    display:inline-block; margin-top:16px; font-size:16px; font-weight:800;
+    color:var(--yellow); text-decoration:none; letter-spacing:0.5px;
   }
   .link-sub:active { text-decoration:underline; }
 
-  /* Collapsible maxes editor */
-  .maxes-toggle {
-    display:block; margin:18px auto 0; background:none; border:none;
-    color:rgba(255,255,255,0.5); font-family:'Barlow',sans-serif;
+  /* Subtle Settings, with two collapsible sub-options */
+  .settings-toggle {
+    display:block; margin:22px auto 0; background:none; border:none;
+    color:rgba(255,255,255,0.45); font-family:'Barlow',sans-serif;
     font-weight:700; font-size:13px; cursor:pointer; padding:6px 10px;
   }
-  .maxes-toggle:active { color:var(--yellow); }
-  .maxes-panel {
-    display:none; margin:10px auto 0; max-width:520px;
-    background:var(--blue); border-radius:14px; padding:14px 16px;
+  .settings-toggle:active { color:var(--yellow); }
+  .settings-panel {
+    display:none; margin:8px auto 0; max-width:520px;
+    background:var(--blue); border-radius:14px; padding:8px 16px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,0.3);
   }
-  .maxes-panel.open { display:block; }
-  .maxes-panel .hint {
+  .settings-panel.open { display:block; }
+  .settings-section { border-top:1px solid var(--line); }
+  .settings-section:first-child { border-top:none; }
+  .settings-sub {
+    display:block; width:100%; text-align:left; background:none; border:none;
+    color:var(--yellow); font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:14px; letter-spacing:2px; text-transform:uppercase;
+    cursor:pointer; padding:14px 2px;
+  }
+  .settings-sub-panel { display:none; padding:0 2px 14px; }
+  .settings-sub-panel.open { display:block; }
+  .settings-panel .hint {
     font-size:12px; color:rgba(255,255,255,0.55);
     margin-bottom:10px; line-height:1.4;
+  }
+  .rounds-row { display:flex; align-items:center; gap:12px; }
+  .rounds-input {
+    width:90px; background:rgba(0,0,0,0.25); border:1px solid var(--line);
+    color:var(--white); font-family:'Archivo Black',sans-serif;
+    font-size:20px; text-align:center; padding:10px; border-radius:8px; outline:none;
+    -webkit-appearance:none; -moz-appearance:textfield;
+  }
+  .rounds-input::-webkit-outer-spin-button,
+  .rounds-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .rounds-input:focus { border-color:var(--yellow); }
+  .rounds-input.saving { border-color:var(--yellow); background:rgba(255,198,39,0.08); }
+  .rounds-input.saved  { border-color:#3fbf7f; }
+  .rounds-unit {
+    font-family:'Barlow',sans-serif; font-weight:700;
+    font-size:14px; color:rgba(255,255,255,0.6);
   }
   .max-row {
     display:flex; align-items:center; gap:12px;
@@ -314,10 +340,25 @@
   <a class="link-sub" href="manage.html" style="opacity:0.7;">Fix a mistake?</a>
 </div>
 
-<button class="maxes-toggle" id="maxes-toggle" type="button" onclick="toggleMaxes()">▸ Set marks per round</button>
-<div class="maxes-panel" id="maxes-panel">
-  <div class="hint">Type the total marks available for each round. Leave blank to remove the cap. Saves automatically.</div>
-  <div id="maxes-rows"></div>
+<button class="settings-toggle" id="settings-toggle" type="button" onclick="toggleSettings()">▸ Settings</button>
+<div class="settings-panel" id="settings-panel">
+  <div class="settings-section">
+    <button class="settings-sub" id="sub-marks-btn" type="button" onclick="toggleSub('marks')">▸ Marks per round</button>
+    <div class="settings-sub-panel" id="sub-marks">
+      <div class="hint">Type the total marks available for each round. Leave blank to remove the cap. Saves automatically.</div>
+      <div id="maxes-rows"></div>
+    </div>
+  </div>
+  <div class="settings-section">
+    <button class="settings-sub" id="sub-rounds-btn" type="button" onclick="toggleSub('rounds')">▸ Number of rounds</button>
+    <div class="settings-sub-panel" id="sub-rounds">
+      <div class="hint">How many rounds are in the quiz? This sets the round buttons above. Saves automatically.</div>
+      <div class="rounds-row">
+        <input class="rounds-input" id="rounds-input" type="number" inputmode="numeric" min="1" max="12">
+        <span class="rounds-unit">rounds</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -327,11 +368,12 @@
   // CONFIG — paste your Apps Script Web app URL here.
   // ============================================================
   const API_URL = 'https://script.google.com/macros/s/AKfycby4CsJlEWM_De3XJKhPaYDUtb1-FxReaW3dqU55cdSDcnUnbn3xik1UEbpbT6x2B1AvDA/exec';
-  const ROUNDS  = 7;
+  const ROUNDS_CAP = 12;
   // ============================================================
 
   let teams = [];
   let roundMax = {};
+  let rounds = 7;            // configurable number of rounds (from backend)
   let selectedTeam = null;
   let selectedRound = null;
 
@@ -339,19 +381,26 @@
     document.getElementById('setup').style.display = 'block';
   }
 
-  // Build round buttons
-  (function buildRounds() {
+  // Build round buttons (rebuilt whenever the round count changes)
+  function buildRounds() {
     const grid = document.getElementById('round-grid');
-    for (let i = 1; i <= ROUNDS; i++) {
+    grid.innerHTML = '';
+    for (let i = 1; i <= rounds; i++) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'round-btn';
+      b.className = 'round-btn' + (selectedRound === i ? ' active' : '');
       b.textContent = 'R' + i;
       b.dataset.round = i;
       b.onclick = () => selectRound(i);
       grid.appendChild(b);
     }
-  })();
+    if (selectedRound && selectedRound > rounds) {
+      selectedRound = null;
+      updateRoundMaxInfo();
+      updatePercent();
+    }
+  }
+  buildRounds();
 
   function selectRound(r) {
     selectedRound = r;
@@ -407,18 +456,27 @@
     return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
   }
 
-  function toggleMaxes() {
-    const panel = document.getElementById('maxes-panel');
-    const btn   = document.getElementById('maxes-toggle');
+  function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    const btn   = document.getElementById('settings-toggle');
     const open  = panel.classList.toggle('open');
-    btn.textContent = (open ? '▾' : '▸') + ' Set marks per round';
-    if (open) renderMaxesRows();
+    btn.textContent = (open ? '▾' : '▸') + ' Settings';
+  }
+
+  function toggleSub(which) {
+    const panel = document.getElementById('sub-' + which);
+    const btn   = document.getElementById('sub-' + which + '-btn');
+    const open  = panel.classList.toggle('open');
+    const label = which === 'marks' ? ' Marks per round' : ' Number of rounds';
+    btn.textContent = (open ? '▾' : '▸') + label;
+    if (open && which === 'marks') renderMaxesRows();
+    if (open && which === 'rounds') document.getElementById('rounds-input').value = rounds;
   }
 
   function renderMaxesRows() {
     const box = document.getElementById('maxes-rows');
     let html = '';
-    for (let r = 1; r <= ROUNDS; r++) {
+    for (let r = 1; r <= rounds; r++) {
       const v = roundMax[r];
       html += `<div class="max-row">
         <div class="max-row-label">R${r}</div>
@@ -459,6 +517,31 @@
     } catch (e) {
       inp.classList.remove('saving');
       toast('Save failed: ' + e.message, true);
+    }
+  }
+
+  async function saveRounds(inp) {
+    const n = parseInt(inp.value, 10);
+    if (!(n >= 1 && n <= ROUNDS_CAP)) {
+      toast('Rounds must be 1–' + ROUNDS_CAP, true);
+      inp.value = rounds;
+      return;
+    }
+    if (n === rounds) return;
+    inp.classList.add('saving');
+    try {
+      const res = await api({ action: 'setRounds', rounds: n });
+      if (!res.ok) throw new Error(res.error || 'Failed');
+      rounds = res.rounds || n;
+      buildRounds();
+      renderMaxesRows();
+      inp.classList.remove('saving');
+      inp.classList.add('saved');
+      setTimeout(() => inp.classList.remove('saved'), 900);
+    } catch (e) {
+      inp.classList.remove('saving');
+      toast('Save failed: ' + e.message, true);
+      inp.value = rounds;
     }
   }
 
@@ -534,6 +617,8 @@
     const max = roundMax[selectedRound];
     if (max !== undefined && score > max) {
       toast('Score ' + fmtNum(score) + ' is more than the ' + fmtNum(max) + ' marks available for R' + selectedRound + '.', true);
+      // Flag the attempt so the scoreboard shows a red ✕ for this round
+      try { await api({ action: 'recordRejected', team: selectedTeam, round: selectedRound }); } catch (e) {}
       return;
     }
     const btn = document.getElementById('submit-btn');
@@ -562,6 +647,10 @@
       if (data) {
         teams = data.teams || [];
         roundMax = data.roundMax || {};
+        if (data.rounds >= 1 && data.rounds <= ROUNDS_CAP) {
+          rounds = data.rounds;
+          buildRounds();
+        }
         restoreTeam();
         renderTeamOptions('');
         updateRoundMaxInfo();
@@ -606,6 +695,8 @@
 
   document.getElementById('team-search').addEventListener('input', e => renderTeamOptions(e.target.value));
   document.getElementById('score-input').addEventListener('input', updatePercent);
+  document.getElementById('rounds-input').addEventListener('change', e => saveRounds(e.target));
+  document.getElementById('rounds-input').addEventListener('blur',   e => saveRounds(e.target));
 
   // Close the team list when tapping outside it
   document.addEventListener('click', e => {
