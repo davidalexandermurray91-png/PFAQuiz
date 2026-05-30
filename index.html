@@ -117,6 +117,7 @@
     display:flex; align-items:center; justify-content:center;
   }
   .round-cell.empty { color:rgba(255,255,255,0.18); }
+  .round-cell.missing { color:var(--red); font-weight:800; opacity:0.7; }
 
   /* High score per round — yellow circle badge */
   .round-cell.high .score-val {
@@ -335,7 +336,7 @@
       roundsUsed.forEach(r => {
         const v = t.perRound[r];
         if (v === undefined || v === null) {
-          html += '<div class="round-cell empty">—</div>';
+          html += '<div class="round-cell missing">✕</div>';
         } else if (v === roundHigh[r] && roundHigh[r] !== undefined) {
           html += '<div class="round-cell high"><span class="score-val">' + fmt(v) + '</span></div>';
         } else {
