@@ -16,16 +16,18 @@
  * The script auto-creates two tabs on first call: Teams and Scores.
  */
 
-const SHEET_TEAMS  = 'Teams';
-const SHEET_SCORES = 'Scores';
-const ROUNDS_MAX   = 7;
+const SHEET_TEAMS     = 'Teams';
+const SHEET_SCORES    = 'Scores';
+const SHEET_ROUND_MAX = 'RoundMax';
+const ROUNDS_MAX      = 7;
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActive();
   ensureSheets_(ss);
-  const teams  = readTeams_(ss);
-  const scores = readScores_(ss);
-  return json_({ ok: true, teams, scores, rounds: ROUNDS_MAX });
+  const teams    = readTeams_(ss);
+  const scores   = readScores_(ss);
+  const roundMax = readRoundMax_(ss);
+  return json_({ ok: true, teams, scores, roundMax, rounds: ROUNDS_MAX });
 }
 
 function doPost(e) {
@@ -45,6 +47,29 @@ function doPost(e) {
       return json_({ ok: true, teams: teams.concat(name), added: true });
     }
 
+    if (body.action === 'setRoundMax') {
+      const round = parseInt(body.round, 10);
+      if (!(round >= 1 && round <= ROUNDS_MAX)) return json_({ ok: false, error: 'Round must be 1–' + ROUNDS_MAX });
+      const sheet = ss.getSheetByName(SHEET_ROUND_MAX);
+      const raw = body.max;
+      const clear = raw === '' || raw === null || raw === undefined;
+      const max = clear ? null : Number(raw);
+      if (!clear && (!isFinite(max) || max < 0)) return json_({ ok: false, error: 'Max must be a positive number' });
+      const data = sheet.getDataRange().getValues();
+      let rowIdx = -1;
+      for (let i = 1; i < data.length; i++) {
+        if (Number(data[i][0]) === round) { rowIdx = i; break; }
+      }
+      if (clear) {
+        if (rowIdx >= 0) sheet.deleteRow(rowIdx + 1);
+      } else if (rowIdx >= 0) {
+        sheet.getRange(rowIdx + 1, 1, 1, 2).setValues([[round, max]]);
+      } else {
+        sheet.appendRow([round, max]);
+      }
+      return json_({ ok: true, roundMax: readRoundMax_(ss) });
+    }
+
     if (body.action === 'submitScore') {
       const team = cleanName_(body.team);
       const round = parseInt(body.round, 10);
@@ -52,6 +77,11 @@ function doPost(e) {
       if (!team) return json_({ ok: false, error: 'Team required' });
       if (!(round >= 1 && round <= ROUNDS_MAX)) return json_({ ok: false, error: 'Round must be 1–' + ROUNDS_MAX });
       if (!isFinite(score)) return json_({ ok: false, error: 'Score must be a number' });
+      const roundMax = readRoundMax_(ss);
+      if (roundMax[round] !== undefined && score > roundMax[round]) {
+        return json_({ ok: false, error: 'Score ' + score + ' exceeds max of ' + roundMax[round] + ' for round ' + round });
+      }
+      if (score < 0) return json_({ ok: false, error: 'Score cannot be negative' });
 
       const sheet = ss.getSheetByName(SHEET_SCORES);
       // Upsert: replace any existing row for (team, round) so resubmits overwrite.
@@ -143,6 +173,21 @@ function ensureSheets_(ss) {
   if (!t) { t = ss.insertSheet(SHEET_TEAMS); t.appendRow(['Team Name', 'Added']); }
   let s = ss.getSheetByName(SHEET_SCORES);
   if (!s) { s = ss.insertSheet(SHEET_SCORES); s.appendRow(['Timestamp', 'Team', 'Round', 'Score']); }
+  let m = ss.getSheetByName(SHEET_ROUND_MAX);
+  if (!m) { m = ss.insertSheet(SHEET_ROUND_MAX); m.appendRow(['Round', 'Max']); }
+}
+
+function readRoundMax_(ss) {
+  const sh = ss.getSheetByName(SHEET_ROUND_MAX);
+  const last = sh.getLastRow();
+  const out = {};
+  if (last < 2) return out;
+  sh.getRange(2, 1, last - 1, 2).getValues().forEach(r => {
+    const round = Number(r[0]);
+    const max = Number(r[1]);
+    if (round >= 1 && round <= ROUNDS_MAX && isFinite(max)) out[round] = max;
+  });
+  return out;
 }
 
 function readTeams_(ss) {

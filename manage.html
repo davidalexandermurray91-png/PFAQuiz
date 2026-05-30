@@ -120,6 +120,43 @@
     color:rgba(255,255,255,0.4); font-size:13px;
   }
 
+  .maxes-card {
+    background:var(--blue); border-radius:14px;
+    margin-bottom:14px; padding:14px 16px;
+    box-shadow:0 4px 18px rgba(0,0,0,0.3);
+  }
+  .maxes-label {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:13px; letter-spacing:3px; text-transform:uppercase;
+    color:var(--yellow); margin-bottom:10px;
+  }
+  .maxes-hint {
+    font-size:12px; color:rgba(255,255,255,0.55);
+    margin-bottom:12px; line-height:1.4;
+  }
+  .maxes-grid {
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:6px;
+  }
+  .max-cell {
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .max-r {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1px; color:var(--yellow);
+  }
+  .max-input {
+    width:100%; background:rgba(0,0,0,0.25); border:1px solid var(--line);
+    color:var(--white); font-family:'Archivo Black',sans-serif;
+    font-size:15px; text-align:center; padding:8px 2px; border-radius:8px; outline:none;
+    -webkit-appearance:none; -moz-appearance:textfield;
+    min-width:0;
+  }
+  .max-input::-webkit-outer-spin-button,
+  .max-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .max-input:focus { border-color:var(--yellow); }
+  .max-input.saving { border-color:var(--yellow); background:rgba(255,198,39,0.08); }
+  .max-input.saved  { border-color:#3fbf7f; }
+
   .empty-state {
     background:var(--blue); border-radius:14px;
     padding:40px 22px; text-align:center;
@@ -163,6 +200,7 @@
     .team-name { font-size:17px; }
     .score-value { font-size:16px; }
     .scores-grid { grid-template-columns:1fr; }
+    .max-input { font-size:13px; padding:6px 2px; }
   }
 </style>
 </head>
@@ -179,6 +217,12 @@
 
 <div id="setup" style="display:none">
   <strong>Setup needed:</strong> Paste your Apps Script Web app URL into <code>API_URL</code>.
+</div>
+
+<div class="maxes-card">
+  <div class="maxes-label">Marks Available Per Round</div>
+  <div class="maxes-hint">Set the total marks for each round. Submissions over the max are rejected; the entry form shows a live percentage.</div>
+  <div class="maxes-grid" id="maxes-grid"></div>
 </div>
 
 <div id="teams-list">
@@ -201,6 +245,7 @@
 
   let teams = [];
   let scores = [];
+  let roundMax = {};
   // Track which thing is currently being edited inline (only one at a time)
   let editing = null; // { kind:'team'|'score', team, round? }
 
@@ -213,11 +258,57 @@
       if (!data || !data.ok) throw new Error(data && data.error || 'Bad response');
       teams = data.teams || [];
       scores = data.scores || [];
+      roundMax = data.roundMax || {};
+      renderMaxes();
       render();
     } catch (e) {
       toast('Load failed: ' + e.message, true);
     } finally {
       btn.classList.remove('spin');
+    }
+  }
+
+  function renderMaxes() {
+    const grid = document.getElementById('maxes-grid');
+    let html = '';
+    for (let r = 1; r <= ROUNDS; r++) {
+      const v = roundMax[r];
+      html += `<div class="max-cell">
+        <div class="max-r">R${r}</div>
+        <input class="max-input" type="number" inputmode="decimal" step="0.5" min="0"
+               id="mx-${r}" data-round="${r}" placeholder="—"
+               value="${v !== undefined ? v : ''}">
+      </div>`;
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll('.max-input').forEach(inp => {
+      inp.addEventListener('change', () => saveMax(Number(inp.dataset.round), inp));
+      inp.addEventListener('blur',   () => saveMax(Number(inp.dataset.round), inp));
+    });
+  }
+
+  async function saveMax(round, inp) {
+    const raw = inp.value.trim();
+    const existing = roundMax[round];
+    const newVal = raw === '' ? null : Number(raw);
+    if (newVal === null && existing === undefined) return;
+    if (newVal !== null && newVal === existing) return;
+    if (newVal !== null && (!isFinite(newVal) || newVal < 0)) {
+      toast('Max must be a positive number', true);
+      inp.value = existing !== undefined ? existing : '';
+      return;
+    }
+    inp.classList.add('saving');
+    try {
+      const res = await api({ action:'setRoundMax', round, max: raw });
+      if (!res.ok) throw new Error(res.error || 'Failed');
+      roundMax = res.roundMax || {};
+      inp.classList.remove('saving');
+      inp.classList.add('saved');
+      setTimeout(() => inp.classList.remove('saved'), 900);
+    } catch (e) {
+      inp.classList.remove('saving');
+      toast('Save failed: ' + e.message, true);
     }
   }
 
